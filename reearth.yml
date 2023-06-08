@@ -1,0 +1,23 @@
+id: gpx-reader
+name: GPX Reader
+version: 0.0.1
+extensions:
+  - id: gpx-reader
+    type: widget
+    name: GPX Reader
+    widgetLayout:
+      floating: true
+    schema:
+      groups:
+        - id: gpx_list
+          list: true
+          title: GPX File
+          fields:
+            - id: gpx_url
+              type: url
+              title: GPX File
+              ui: file
+            - id: gpx_color
+              type: string
+              title: GPX Color
+              ui: color
