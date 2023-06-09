@@ -13,6 +13,15 @@ const html = `
     }
   }
 
+  let optionObj = {
+    "enableHighAccuracy": true ,
+    "timeout": 600000 ,
+    "maximumAge": 1000,
+  } ;
+
+  let watchID;
+
+
   function handleFileList(files) {
 
     for (const file of files) {
@@ -56,7 +65,7 @@ const html = `
         const gpxDocument = parser.parseFromString(gpxString, 'text/xml');
 
         const geoJson = toGeoJSON.gpx(gpxDocument);
-        // console.log("geojson: ", geoJson); // output GeoJSON object to console (optional)
+        console.log("geojson: ", geoJson); // output GeoJSON object to console (optional)
         return geoJson
       });
   }
@@ -64,7 +73,7 @@ const html = `
 
 
   function handleGeojson(geoJsonData, id, action) {
-    // console.log("Hanlde geoJsonData: ", geoJsonData)
+    console.log("Hanlde geoJsonData: ", geoJsonData)
     const geoJsonString = JSON.stringify(geoJsonData);
     const blob = new Blob([geoJsonString], { type: 'application/json' });
     const link = URL.createObjectURL(blob);
@@ -132,7 +141,30 @@ const html = `
     }
   });
 
-//   test new brunch
+  window.addEventListener("message", function (e) {
+    if (e.source !== parent) return;
+      navigator.geolocation.clearWatch(watchID);
+      watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
+  });
+
+  let points = []
+
+function successCallback(position){
+  // Store location data
+  let myPosition = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+  }
+
+  points.push([position.coords.longitude, position.coords.latitude])
+  console.log("points: ", points)
+};
+
+  function errorCallback(error){
+    alert("位置情報が取得できませんでした");
+};
+
+
 
 </script>
 `;
