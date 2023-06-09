@@ -13,14 +13,21 @@ const html = `
     }
   }
 
+  // let property;
+  // var cesium, reearth;
   let optionObj = {
     "enableHighAccuracy": true ,
     "timeout": 600000 ,
     "maximumAge": 1000,
   } ;
-
+  
+  // const POINT_STYLE = 'point';
+  // const ICON_STYLE = 'icon';
+  // const MODEL_STYLE = 'model';
+  // let styleType= POINT_STYLE;
   let watchID;
-
+  // let type;
+  // let czmlId = 0;
 
   function handleFileList(files) {
 

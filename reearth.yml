@@ -21,3 +21,54 @@ extensions:
               type: string
               title: GPX Color
               ui: color
+        - id: default
+          title: General
+          fields:
+            - id: style
+              type: string
+              title: Style
+              defaultValue: point
+              choices:
+                - key: point
+                  label: Point
+                - key: icon
+                  label: Icon
+                - key: model
+                  label: 3D model          
+        - id: pointStyle
+          title: Point Style
+          fields:
+            - id: pointColor
+              type: string
+              title: Point Color
+              ui: color
+            - id: pointSize
+              type: number
+              title: Point Size
+              suffix: px
+              defaultValue: 10
+        - id: iconStyle
+          title: Icon Style
+          fields:
+            - id: imageUrl
+              type: url
+              title: Image Url
+              ui: image
+            - id: imageSize
+              type: number
+              title: Image Size
+              defaultValue: 0.1
+        - id: modelStyle
+          title: 3d Model Style
+          fields:
+            - id: modelUrl
+              type: url
+              title: 3D Model
+              ui: file
+            - id: modelSize
+              type: number
+              title: Size
+              defaultValue: 1
+            - id: modelHeading
+              type: number
+              title: Heading
