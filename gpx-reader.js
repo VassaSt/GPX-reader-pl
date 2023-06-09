@@ -165,7 +165,6 @@ function successCallback(position){
 };
 
 
-
 </script>
 `;
 

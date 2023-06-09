@@ -1,1 +1,1 @@
-# GPX-reader-pl
+# GPX-reader-plagin
