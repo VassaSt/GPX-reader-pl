@@ -1,5 +1,5 @@
 const html = `
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js"></script>
 <script>
 let reearth, property, layers;
@@ -173,6 +173,34 @@ window.addEventListener("message", function (e) {
     
 });
 
+function convertToRgbA(alphahex){
+  var a, rgba=[];
+  var hex = alphahex.slice(1);
+
+  // Split to four channels
+  var c = hex.match(/.{1,2}/g);
+
+  // Function: to decimals (for RGB)
+  var d = function(v) {
+      return parseInt(v, 16);
+  };
+
+  // Function: to percentage (for alpha), to 3 decimals
+  var p = function(v) {
+      return parseFloat(parseInt((parseInt(v, 16)/255)*1000)/1000);
+  };
+
+
+  // Convert array into rgba values
+  a = p(c[3])*255;
+  $.each(c.slice(0,3), function(i,v) {
+      rgba.push(d(v));
+  });
+
+  rgba.push(isNaN(a) ? 255 : a);
+  return rgba;
+}
+
 
 function successCallback(position){
 // Store location data
@@ -193,7 +221,7 @@ switch(styleType) {
       pointColor: property?.pointStyle?.pointColor || "#ffffffff"
     }
     
-    czml = createPointStyle(points, setting);
+    czml = createPointStyle(myPosition, setting);
     break;
   case ICON_STYLE:
     setting = {
@@ -201,7 +229,7 @@ switch(styleType) {
       imageSize: property?.iconStyle?.imageSize || 0.1
     }
     
-    czml = createIconStyle(points, setting);
+    czml = createIconStyle(myPosition, setting);
     break;
 
     case MODEL_STYLE:
@@ -211,7 +239,7 @@ switch(styleType) {
         modelSize:  property?.modelStyle?.modelSize || 1
       }
       
-      czml = createModelStyle(points, setting);
+      czml = createModelStyle(myPosition, setting);
       break;
   default:
     setting = {
@@ -219,7 +247,7 @@ switch(styleType) {
       pointColor: property?.pointStyle?.pointColor || "#ffffffff"
     }
     
-    czml = createPointStyle(points, setting);
+    czml = createPointStyle(myPosition, setting);
     break;
 }
 }
