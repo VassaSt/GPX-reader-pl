@@ -1,26 +1,17 @@
-id: gpx-reader
+id: gpx-reader-new
 name: GPX Reader
-version: 0.0.1
+version: 0.0.2
 extensions:
-  - id: gpx-reader
+  - id: gpx-reader-new
     type: widget
     name: GPX Reader
     widgetLayout:
-      floating: true
+      defaultLocation:
+        zone: outer
+        section: right
+        area: top
     schema:
       groups:
-        - id: gpx_list
-          list: true
-          title: GPX File
-          fields:
-            - id: gpx_url
-              type: url
-              title: GPX File
-              ui: file
-            - id: gpx_color
-              type: string
-              title: GPX Color
-              ui: color
         - id: default
           title: General
           fields:
