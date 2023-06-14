@@ -154,8 +154,9 @@ h3#title p {
       </svg>
 
   </span>
-      <p class="title-p" id="plugin-name">GPX Reader</p> <span id="close" data-stt="0">
-      </span>
+      <p class="title-p" id="plugin-name">GPX Reader</p> 
+      <span id="close" data-stt="0"></span>
+  </span>
   </h3>
 
   <div id="content">
@@ -182,13 +183,22 @@ h3#title p {
 <button class="secondary-btn" id="fly-btn" onclick="handleFly()">Fly</button>
 <button class="secondary-btn" id="follow-btn" onclick="handleFollow()">Follow</button>
 </div>
-<button class="secondary-btn" id="download-btn" onclick="handleDownload()">Download GPX</button>
   </div>
 
 </div>
+<script src="https://unpkg.com/togeojson@0.16.0/togeojson.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
 <script>
+
+let reearth;
+let property;
+let gpxproperty;
+let userproperty;
+let layers;
+let gpxList;
+let newProperty;
+
 var layerId;
 let expanded = false;
 let wapperElm = document.getElementById("wrapper");
@@ -197,8 +207,7 @@ let textColor = "#c7c5c5";
 let bgColor = "rgb(23, 22, 24)";
 let primaryColor = "#3b3cd0";
 
-let property;
-var cesium, reearth;
+var cesium;
 let optionObj = {
   "enableHighAccuracy": true ,
   "timeout": 600000 ,
@@ -213,6 +222,162 @@ let styleType= POINT_STYLE;
 let watchID;
 let type;
 let czmlId = 0;
+
+
+parent.postMessage({ action: "initWidget", }, "*");
+window.addEventListener("message", async function (e) {
+  if (e.source !== parent) return
+
+  reearth = e.source.reearth
+  layers = reearth.layers.layers
+  if (e.data.handle) {
+    newProperty = e.data.property
+
+    // console.log("1 newProperty : ", newProperty)
+
+    if (JSON.stringify(property) != JSON.stringify(newProperty)) {
+      gpxproperty = newProperty
+
+      gpxList = gpxproperty.gpx_list
+
+      console.log("2 gpxproperty: ", gpxproperty)
+      
+      hideLayers(gpxList);
+      handleFileList(gpxList);
+    }
+  }
+
+  userproperty = e.data.property;
+  cesium = e.source.Cesium;
+  console.log("userproperty: ", userproperty)
+
+  //Get ID of layer that show my location
+  if (e.data.hasOwnProperty("layerId")) {
+    if(e.data.layerId) {
+      layerId = e.data.layerId;
+    }
+  }
+
+  // Update style 
+  if(property?.hasOwnProperty("default") && property.default.style) {
+    styleType = property.default.style;
+    myLocationElm.setAttribute("data-style", styleType);
+  }
+
+  // Save property date
+  if(property) {
+    myLocationElm.setAttribute("data-property", JSON.stringify(property));
+  }
+  
+  if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
+    (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
+    (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE) ) {
+    if (type && type == "follow") {
+      navigator.geolocation.clearWatch(watchID);
+      watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
+    } else if (type && type == "fly") {
+      handleFly();
+    }
+  }
+});
+
+function handleFileList(files) {
+
+  for (const file of files) {
+    const layerMatch = layers.find(layer => layer.title === file.id);
+    if (file.gpx_url) {
+      handleFileSelectFromURL(file.gpx_url)
+        .then(data => {
+          data.features.forEach(function (feature) {
+            feature.properties.stroke = file.gpx_color || "yellow";
+            feature.properties.fill = file.gpx_color || "yellow";
+          })
+
+          if (layerMatch) {
+            handleGeojson(data, layerMatch.id, "override")
+          } else {
+            handleGeojson(data, file.id, "add")
+          }
+        });
+    } else {
+      if (layerMatch) {
+        //override roperty to img url null, none, ""
+        reearth.layers.overrideProperty(layerMatch.id, {
+          default: {
+            url: "",
+            type: "geojson",
+            clampToGround: true
+          }
+        })
+      }
+    }
+  }
+}
+
+
+function handleFileSelectFromURL(url) {
+  return fetch(url)
+    .then(response => response.text())
+    .then(gpxString => {
+      const parser = new DOMParser();
+      const gpxDocument = parser.parseFromString(gpxString, 'text/xml');
+
+      const geoJson = toGeoJSON.gpx(gpxDocument);
+      // console.log("geojson: ", geoJson); // output GeoJSON object to console (optional)
+      return geoJson
+    });
+}
+
+function handleGeojson(geoJsonData, id, action) {
+  // console.log("Hanlde geoJsonData: ", geoJsonData)
+  const geoJsonString = JSON.stringify(geoJsonData);
+  const blob = new Blob([geoJsonString], { type: 'application/json' });
+  const link = URL.createObjectURL(blob);
+
+  if (action === "add") {
+    reearth.layers.add({
+      extensionId: "resource",
+      isVisible: true,
+      title: id,
+      property: {
+        default: {
+          url: link,
+          type: "geojson",
+          clampToGround: true
+        },
+      },
+    });
+  } else if (action === "override") {
+    reearth.layers.overrideProperty(id, {
+      default: {
+        url: link,
+        type: "geojson",
+        clampToGround: true
+      },
+    },
+    );
+  }
+}
+
+function hideLayers(list) {
+  if (!list || 0 === list.length) {
+    let filteredLayers = layers.filter(layer => layer.type === "resource" && layer.title !== "File")
+    filteredLayers.forEach(layer => {
+      reearth.layers.hide(layer.id)
+    });
+  }
+  else {
+    const list_id = list.map(obj => obj.id);
+    //layers => layer.title !== list_id then do something
+    let filteredLayers = layers.filter(layer => !list_id.includes(layer.title) && layer.type === "resource" && layer.title !== "File");
+
+    filteredLayers.forEach(layer => {
+      reearth.layers.hide(layer.id)
+    });
+  }
+
+}
+
 
 function handleCloseOpenPopup(e) {
   let wapperElm = document.getElementById("wrapper");
@@ -246,58 +411,6 @@ function handleCloseOpenPopup(e) {
   }
 }
 
-parent.postMessage({action: "initWidget",}, "*");
-
-window.addEventListener("message", function (e) {
-  if (e.source !== parent) return;
-  
-  property = e.data.property;
-  cesium = e.source.Cesium;
-  reearth = e.source.reearth;
-
-  //Get ID of layer that show my location
-  if (e.data.hasOwnProperty("layerId")) {
-    if(e.data.layerId) {
-      layerId = e.data.layerId;
-    }
-  }
-
-  // Update style 
-  if(property?.hasOwnProperty("default") && property.default.style) {
-    styleType = property.default.style;
-    myLocationElm.setAttribute("data-style", styleType);
-  }
-
-  // Save property date
-  if(property) {
-    myLocationElm.setAttribute("data-property", JSON.stringify(property));
-  }
-  
-  if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
-    (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
-    (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE) ) {
-    if (type && type == "follow") {
-      navigator.geolocation.clearWatch(watchID);
-      watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
-    } else if (type && type == "fly") {
-      handleFly();
-    }
-  }
-
-  // Get data to customize plugin UI
-  if (property?.hasOwnProperty("customize") && property.customize?.primaryColor) {
-      changePrimaryColor(property.customize.primaryColor);
-  }
-
-  if (property?.hasOwnProperty("customize") && property.customize?.backgroundColor) {
-      changeBackgroundColor(property.customize.backgroundColor);
-  }
-
-  if (property?.hasOwnProperty("customize") && property.customize?.theme) {
-      changeTheme(property.customize.theme);
-  }
-
-});
 
 // Handle Update IFrame Size
 function updateIframeSize() {
@@ -336,7 +449,7 @@ function handleFollow(){
     });
   } else {
     followBtnElm.textContent = "Follow";
-    console.log("geogeo: ", geojsonData)
+    // console.log("geogeo: ", geojsonData)
     navigator.geolocation.clearWatch(watchID);
     watchID = null;
     type = null;
@@ -346,35 +459,6 @@ function handleFollow(){
     setHoverEffectForButton(followBtnElm);
   }
 }
-
-
-//function handle when click download button
-  function handleDownload() {
-    const options = {
-      metadata: {
-        name: 'A grand adventure',
-        author: {
-          name: 'Dwayne Parton'
-        }
-      }
-    }
-    const geojson = geojsonData
-    // const gpx = togpx(geojson)
-    // console.log("gpx: ", gpx)
-    downloadObjectAsGpx(geojson, "download");
-  }
-
-  // Download Geojson file
-  function downloadObjectAsGpx(exportObj, exportName) {
-    var gpxData = togpx(exportObj); // convert to GPX format
-    var dataStr = "data:text/xml;charset=utf-8," + encodeURIComponent(gpxData);
-    var downloadAnchorNode = document.createElement("a");
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", exportName + ".gpx");
-    document.body.appendChild(downloadAnchorNode); // required for firefox
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  }
 
 function getMyLocationData() {
   return JSON.parse(myLocationElm.getAttribute("data-location"));
@@ -458,13 +542,13 @@ function successCallback(position){
       heading: position.coords.heading === null ? 0 : position.coords.heading
   }
 
-  console.log("myPosition: ", myPosition)
+  // console.log("myPosition: ", myPosition)
   points.push([position.coords.longitude, position.coords.latitude])
 
-  console.log("points: ", points)
+  // console.log("points: ", points)
 
   let pathGeojson = createPathGeojson(points)
-  console.log("pathGeojson: ", pathGeojson)
+  // console.log("pathGeojson: ", pathGeojson)
 
   assignGeojsonData(pathGeojson)
 
@@ -491,7 +575,7 @@ function successCallback(position){
   document.getElementById("longitude").innerHTML = myPosition.longitude;
 
   let czml, setting;
-  property = JSON.parse(myLocationElm.getAttribute("data-property"));
+  userproperty = JSON.parse(myLocationElm.getAttribute("data-property"));
 
   switch(styleType) {
     case POINT_STYLE:
@@ -545,7 +629,7 @@ function successCallback(position){
   let onFollow = false;
   function handleLayerReearth(myPosition, type, czml) {
     if (myPosition) {
-      let cameraHeight = 1000;
+      let cameraHeight = 200;
       if(type == "follow") {
         if(!onFollow) {
           onFollow = true;
@@ -859,12 +943,29 @@ reearth.on("message", (msg) => {
 
 const handles = {}
 
+// handles.initWidget = () => {
+//   reearth.ui.postMessage({
+//     title: "initWidget",
+//     property: reearth.widget.property,
+//   })
+// }
+
+
 handles.initWidget = () => {
   reearth.ui.postMessage({
-    title: "initWidget",
-    property: reearth.widget.property,
-  })
-}
+  handle: "initWidget",
+  title: "initWidget",
+  property: reearth.widget.property,
+  });
+  };
+  
+  reearth.on("update", () => {
+  reearth.ui.postMessage({
+  handle: "handleWidget",
+  property: reearth.widget.property,
+  infobox: reearth.layers.overriddenInfobox,
+  });
+  });
 
 reearth.on("message", (msg) => {
   if (msg && msg.action) {
