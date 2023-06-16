@@ -152,11 +152,11 @@ h3#title p {
         <path d="M18.4375 10H15.3125" stroke="#BFBFBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M10 12.5C11.3807 12.5 12.5 11.3807 12.5 10C12.5 8.61929 11.3807 7.5 10 7.5C8.61929 7.5 7.5 8.61929 7.5 10C7.5 11.3807 8.61929 12.5 10 12.5Z" stroke="#BFBFBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-
   </span>
+
       <p class="title-p" id="plugin-name">GPX Reader</p> 
       <span id="close" data-stt="0"></span>
-  </span>
+
   </h3>
 
   <div id="content">
@@ -194,10 +194,10 @@ h3#title p {
 let reearth;
 let property;
 let gpxproperty;
-let userproperty;
 let layers;
 let gpxList;
 let newProperty;
+let userproperty;
 
 var layerId;
 let expanded = false;
@@ -223,6 +223,42 @@ let watchID;
 let type;
 let czmlId = 0;
 
+let followBtnElm = document.getElementById("follow-btn");
+
+
+
+function handleCloseOpenPopup(e) {
+  let wapperElm = document.getElementById("wrapper");
+  if (e.target.id == "title" || e.target.classList.contains("title-p") ||
+  (document.getElementById(e.target.id) !== null && document.getElementById(e.target.id).parentNode.id == "title")) {
+          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
+          if(wapperElm !== null) {
+              wapperElm.classList.remove("height-44");
+          }
+          if (expanded){
+          document.documentElement.classList.add("extendedh", "extendedv");
+          } else {
+          document.documentElement.classList.remove("extendedh", "extendedv");
+          }
+          expanded = !expanded
+  } else {
+      if(e.target.tagName === "path" || e.target.tagName === "svg" || e.target.tagName === "g") {
+      if(e.target.closest("#title")) {
+          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
+          if( wapperElm !== null) {
+          wapperElm.classList.remove("height-44");
+          }
+          if (expanded){
+          document.documentElement.classList.add("extendedh", "extendedv");
+          } else {
+          document.documentElement.classList.remove("extendedh", "extendedv");
+          }
+          expanded = !expanded
+      }
+      }
+  }
+}
+
 
 parent.postMessage({ action: "initWidget", }, "*");
 window.addEventListener("message", async function (e) {
@@ -230,10 +266,11 @@ window.addEventListener("message", async function (e) {
 
   reearth = e.source.reearth
   layers = reearth.layers.layers
+
   if (e.data.handle) {
     newProperty = e.data.property
 
-    // console.log("1 newProperty : ", newProperty)
+    console.log("1 newProperty : ", newProperty)
 
     if (JSON.stringify(property) != JSON.stringify(newProperty)) {
       gpxproperty = newProperty
@@ -245,40 +282,7 @@ window.addEventListener("message", async function (e) {
       hideLayers(gpxList);
       handleFileList(gpxList);
     }
-  }
-
-  userproperty = e.data.property;
-  cesium = e.source.Cesium;
-  console.log("userproperty: ", userproperty)
-
-  //Get ID of layer that show my location
-  if (e.data.hasOwnProperty("layerId")) {
-    if(e.data.layerId) {
-      layerId = e.data.layerId;
-    }
-  }
-
-  // Update style 
-  if(property?.hasOwnProperty("default") && property.default.style) {
-    styleType = property.default.style;
-    myLocationElm.setAttribute("data-style", styleType);
-  }
-
-  // Save property date
-  if(property) {
-    myLocationElm.setAttribute("data-property", JSON.stringify(property));
-  }
-  
-  if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
-    (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
-    (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE) ) {
-    if (type && type == "follow") {
-      navigator.geolocation.clearWatch(watchID);
-      watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
-    } else if (type && type == "fly") {
-      handleFly();
-    }
-  }
+  };
 });
 
 function handleFileList(files) {
@@ -379,37 +383,45 @@ function hideLayers(list) {
 }
 
 
-function handleCloseOpenPopup(e) {
-  let wapperElm = document.getElementById("wrapper");
-  if (e.target.id == "title" || e.target.classList.contains("title-p") ||
-  (document.getElementById(e.target.id) !== null && document.getElementById(e.target.id).parentNode.id == "title")) {
-          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
-          if(wapperElm !== null) {
-              wapperElm.classList.remove("height-44");
-          }
-          if (expanded){
-          document.documentElement.classList.add("extendedh", "extendedv");
-          } else {
-          document.documentElement.classList.remove("extendedh", "extendedv");
-          }
-          expanded = !expanded
-  } else {
-      if(e.target.tagName === "path" || e.target.tagName === "svg" || e.target.tagName === "g") {
-      if(e.target.closest("#title")) {
-          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
-          if( wapperElm !== null) {
-          wapperElm.classList.remove("height-44");
-          }
-          if (expanded){
-          document.documentElement.classList.add("extendedh", "extendedv");
-          } else {
-          document.documentElement.classList.remove("extendedh", "extendedv");
-          }
-          expanded = !expanded
-      }
-      }
+window.addEventListener("message", function (e) {
+  event.preventDefault();
+
+  if (e.source !== parent) return;
+  
+  userproperty = e.data.property;
+  cesium = e.source.Cesium;
+  reearth = e.source.reearth;
+
+  //Get ID of layer that show my location
+  if (e.data.hasOwnProperty("layerId")) {
+    if(e.data.layerId) {
+      layerId = e.data.layerId;
+    }
   }
-}
+
+  // Update style 
+  if(property?.hasOwnProperty("default") && property.default.style) {
+    styleType = property.default.style;
+    myLocationElm.setAttribute("data-style", styleType);
+  }
+
+  // Save property date
+  if(userproperty) {
+    myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
+  }
+  console.log("userproperty in addEventListener: ", userproperty)
+  
+  if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
+    (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
+    (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE)) {
+    if (type && type == "follow") {
+      navigator.geolocation.clearWatch(watchID);
+      watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
+    } else if (type && type == "fly") {
+      handleFly();
+    }
+  }
+});
 
 
 // Handle Update IFrame Size
@@ -429,7 +441,6 @@ function handleFly() {
   type = "fly";
   navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
 }
-let followBtnElm = document.getElementById("follow-btn");
 
 // Handle when clicking Follow button
 function handleFollow(){
@@ -449,7 +460,7 @@ function handleFollow(){
     });
   } else {
     followBtnElm.textContent = "Follow";
-    // console.log("geogeo: ", geojsonData)
+    console.log("geogeo: ", geojsonData)
     navigator.geolocation.clearWatch(watchID);
     watchID = null;
     type = null;
@@ -542,15 +553,15 @@ function successCallback(position){
       heading: position.coords.heading === null ? 0 : position.coords.heading
   }
 
-  // console.log("myPosition: ", myPosition)
-  points.push([position.coords.longitude, position.coords.latitude])
+  console.log("myPosition: ", myPosition)
+  points.push([position.coords.longitude, position.coords.latitude]);
 
-  // console.log("points: ", points)
+  console.log("points: ", points)
 
-  let pathGeojson = createPathGeojson(points)
-  // console.log("pathGeojson: ", pathGeojson)
+  let pathGeojson = createPathGeojson(points);
+  console.log("pathGeojson: ", pathGeojson)
 
-  assignGeojsonData(pathGeojson)
+  assignGeojsonData(pathGeojson);
 
   parent.postMessage({ type: "showPath", pathGeojson }, "*");
 
@@ -575,7 +586,8 @@ function successCallback(position){
   document.getElementById("longitude").innerHTML = myPosition.longitude;
 
   let czml, setting;
-  userproperty = JSON.parse(myLocationElm.getAttribute("data-property"));
+  userrproperty = JSON.parse(myLocationElm.getAttribute("data-property"));
+  console.log("JSON.parse: ", userproperty);
 
   switch(styleType) {
     case POINT_STYLE:
@@ -599,7 +611,7 @@ function successCallback(position){
         setting = {
           modelUrl: property?.modelStyle?.modelUrl || "https://static.reearth.io/assets/01gkn5kjpxbhtnr8adpdmq3jaf.glb",
           modelHeading: property?.modelStyle?.modelHeading || 1,
-          modelSize:  property?.modelStyle?.modelSize || 1
+          modelSize: property?.modelStyle?.modelSize || 1
         }
         
         czml = createModelStyle(getMyLocationData(), setting);
@@ -620,7 +632,7 @@ function successCallback(position){
   //   },
   // });
       
-  //parent.postMessage({ myPosition, type , czml}, "*");
+  // parent.postMessage({ myPosition, type , czml}, "*");
   handleLayerReearth(myPosition, type, czml)
   //updateIframeSize();
 };
@@ -716,61 +728,6 @@ function successCallback(position){
     });
   }
 
-  function changeBackgroundColor(color) {
-      let elmArray = ["wrapper", "title", "fly-btn", "follow-btn"];
-      bgColor = color;
-      elmArray.forEach(elm => {
-          document.getElementById(elm).style.backgroundColor = color;
-      });
-  }
-
-  function changeTextColor(color) {
-      let elmArray = ["plugin-name", "location-datatable" ];
-      elmArray.forEach(elm => {
-          document.getElementById(elm).style.color = color;
-      });
-  }
-
-  function changePluginIconColor(color) {
-    let elms = document.getElementById("logo").querySelectorAll("svg > path");
-    elms.forEach(elm => {
-      elm.setAttribute("stroke", color);
-    });
-  }
-  
-  function changeTheme(theme) {
-    switch(theme) {
-      case 'light':
-          changeBackgroundColor("rgb(236, 236, 236)");
-          textColor = "rgb(38, 38, 38)";
-          changeTextColor(textColor);
-          changePluginIconColor("rgb(38, 38, 38)");
-          break;
-
-      case 'dark':
-          changeBackgroundColor("rgb(23, 22, 24)");
-          textColor = "#c7c5c5";
-          changeTextColor(textColor);
-          changePluginIconColor("#c7c5c5");
-          break;
-      default:
-          break;
-    }
-
-    if (property?.hasOwnProperty("customize") 
-      && property.customize?.primaryColor) {
-      changePrimaryColor(property.customize.primaryColor);
-    } else {
-      changePrimaryColor(primaryColor);
-    }
-
-    if (property?.hasOwnProperty("customize") 
-      && property.customize?.backgroundColor) {
-      changeBackgroundColor(property.customize.backgroundColor);
-    }
-  }
-
-
 function createPointStyle(location, setting) {
   czmlId++
   let czml = [{
@@ -858,6 +815,7 @@ let onFollow = false;
 
 function send() {
   reearth.ui.postMessage({
+    userproperty: reearth.widget.property,
     property: reearth.widget.property,
   });
 }
@@ -943,30 +901,24 @@ reearth.on("message", (msg) => {
 
 const handles = {}
 
-// handles.initWidget = () => {
-//   reearth.ui.postMessage({
-//     title: "initWidget",
-//     property: reearth.widget.property,
-//   })
-// }
-
-
 handles.initWidget = () => {
   reearth.ui.postMessage({
   handle: "initWidget",
   title: "initWidget",
+  userproperty: reearth.widget.property,
   property: reearth.widget.property,
-  });
-  };
-  
-  reearth.on("update", () => {
+  })
+  }
+
+reearth.on("update", () => {
   reearth.ui.postMessage({
   handle: "handleWidget",
+  userproperty: reearth.widget.property,
   property: reearth.widget.property,
   infobox: reearth.layers.overriddenInfobox,
   });
   });
-
+    
 reearth.on("message", (msg) => {
   if (msg && msg.action) {
     handles[msg.action]?.(msg.payload)
