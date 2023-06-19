@@ -225,41 +225,6 @@ let czmlId = 0;
 
 let followBtnElm = document.getElementById("follow-btn");
 
-
-
-function handleCloseOpenPopup(e) {
-  let wapperElm = document.getElementById("wrapper");
-  if (e.target.id == "title" || e.target.classList.contains("title-p") ||
-  (document.getElementById(e.target.id) !== null && document.getElementById(e.target.id).parentNode.id == "title")) {
-          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
-          if(wapperElm !== null) {
-              wapperElm.classList.remove("height-44");
-          }
-          if (expanded){
-          document.documentElement.classList.add("extendedh", "extendedv");
-          } else {
-          document.documentElement.classList.remove("extendedh", "extendedv");
-          }
-          expanded = !expanded
-  } else {
-      if(e.target.tagName === "path" || e.target.tagName === "svg" || e.target.tagName === "g") {
-      if(e.target.closest("#title")) {
-          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
-          if( wapperElm !== null) {
-          wapperElm.classList.remove("height-44");
-          }
-          if (expanded){
-          document.documentElement.classList.add("extendedh", "extendedv");
-          } else {
-          document.documentElement.classList.remove("extendedh", "extendedv");
-          }
-          expanded = !expanded
-      }
-      }
-  }
-}
-
-
 parent.postMessage({ action: "initWidget", }, "*");
 window.addEventListener("message", async function (e) {
   if (e.source !== parent) return
@@ -383,46 +348,84 @@ function hideLayers(list) {
 }
 
 
-window.addEventListener("message", function (e) {
-  event.preventDefault();
 
+function handleCloseOpenPopup(e) {
+  let wapperElm = document.getElementById("wrapper");
+  if (e.target.id == "title" || e.target.classList.contains("title-p") ||
+  (document.getElementById(e.target.id) !== null && document.getElementById(e.target.id).parentNode.id == "title")) {
+          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
+          if(wapperElm !== null) {
+              wapperElm.classList.remove("height-44");
+          }
+          if (expanded){
+          document.documentElement.classList.add("extendedh", "extendedv");
+          } else {
+          document.documentElement.classList.remove("extendedh", "extendedv");
+          }
+          expanded = !expanded
+  } else {
+      if(e.target.tagName === "path" || e.target.tagName === "svg" || e.target.tagName === "g") {
+      if(e.target.closest("#title")) {
+          parent.postMessage({ type: "resize", expanded, heightWp }, "*");
+          if( wapperElm !== null) {
+          wapperElm.classList.remove("height-44");
+          }
+          if (expanded){
+          document.documentElement.classList.add("extendedh", "extendedv");
+          } else {
+          document.documentElement.classList.remove("extendedh", "extendedv");
+          }
+          expanded = !expanded
+      }
+      }
+  }
+}
+
+document.getElementById("follow-btn").addEventListener("click", (e) => {
+  parent.postMessage({type: "geolocation", styleType}, "*");
+});
+
+addEventListener("message", function (e) {
   if (e.source !== parent) return;
   
   userproperty = e.data.property;
   cesium = e.source.Cesium;
   reearth = e.source.reearth;
 
-  //Get ID of layer that show my location
-  if (e.data.hasOwnProperty("layerId")) {
-    if(e.data.layerId) {
-      layerId = e.data.layerId;
-    }
-  }
 
-  // Update style 
-  if(property?.hasOwnProperty("default") && property.default.style) {
-    styleType = property.default.style;
-    myLocationElm.setAttribute("data-style", styleType);
-  }
-
-  // Save property date
-  if(userproperty) {
-    myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
-  }
-  console.log("userproperty in addEventListener: ", userproperty)
+  if (e.data.type === 'geolocation') {
+  // if (e) {
   
-  if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
-    (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
-    (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE)) {
-    if (type && type == "follow") {
-      navigator.geolocation.clearWatch(watchID);
-      watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
-    } else if (type && type == "fly") {
-      handleFly();
+    //Get ID of layer that show my location
+    if (e.data.hasOwnProperty("layerId")) {
+      if(e.data.layerId) {
+        layerId = e.data.layerId;
+      }
+    }
+  
+    // Update style 
+    if(property?.hasOwnProperty("default") && property.default.style) {
+      styleType = property.default.style;
+      myLocationElm.setAttribute("data-style", styleType);
+    }
+  
+    // Save property date
+    if(userproperty) {
+      myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
+    }
+    
+    if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
+      (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
+      (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE)) {
+      if (type && type == "follow") {
+        navigator.geolocation.clearWatch(watchID);
+        watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
+      } else if (type && type == "fly") {
+        handleFly();
+      }
     }
   }
 });
-
 
 // Handle Update IFrame Size
 function updateIframeSize() {
@@ -474,6 +477,7 @@ function handleFollow(){
 function getMyLocationData() {
   return JSON.parse(myLocationElm.getAttribute("data-location"));
 }
+
 
 // Convert 8-digit hex colors to rgba colors
 function convertToRgbA(alphahex){
@@ -586,8 +590,7 @@ function successCallback(position){
   document.getElementById("longitude").innerHTML = myPosition.longitude;
 
   let czml, setting;
-  userrproperty = JSON.parse(myLocationElm.getAttribute("data-property"));
-  console.log("JSON.parse: ", userproperty);
+  property = JSON.parse(myLocationElm.getAttribute("data-property"));
 
   switch(styleType) {
     case POINT_STYLE:
@@ -611,7 +614,7 @@ function successCallback(position){
         setting = {
           modelUrl: property?.modelStyle?.modelUrl || "https://static.reearth.io/assets/01gkn5kjpxbhtnr8adpdmq3jaf.glb",
           modelHeading: property?.modelStyle?.modelHeading || 1,
-          modelSize: property?.modelStyle?.modelSize || 1
+          modelSize:  property?.modelStyle?.modelSize || 1
         }
         
         czml = createModelStyle(getMyLocationData(), setting);
@@ -632,7 +635,7 @@ function successCallback(position){
   //   },
   // });
       
-  // parent.postMessage({ myPosition, type , czml}, "*");
+  //parent.postMessage({ myPosition, type , czml}, "*");
   handleLayerReearth(myPosition, type, czml)
   //updateIframeSize();
 };
@@ -736,7 +739,7 @@ function createPointStyle(location, setting) {
     "version" : "1.0"
     },{
     "id" : czmlId,
-    "name" : "GPX Reader",
+    "name" : "My Location",
     "position" : {
       "cartographicDegrees": [location.longitude, location.latitude, 1]
     },
@@ -758,7 +761,7 @@ function createIconStyle(location, setting) {
       "version" : "1.0"
     }, {
     "id" : czmlId,
-    "name" : "GPX Reader",
+    "name" : "My Location",
     "billboard" : {
       "image" : setting.imageUrl,
       "scale" : setting.imageSize
@@ -785,7 +788,7 @@ function createModelStyle(location, setting) {
       "version" : "1.0"
     }, {
     "id" : czmlId,
-    "name" : "GPX Reader",
+    "name" : "My Location",
     "model": {
       "gltf": setting.modelUrl,
       "scale": setting.modelSize,
@@ -801,6 +804,9 @@ function createModelStyle(location, setting) {
 
   return czml;
 }
+
+
+
 </script>
   `,
   { width: 44, height: 44 }
@@ -815,7 +821,6 @@ let onFollow = false;
 
 function send() {
   reearth.ui.postMessage({
-    userproperty: reearth.widget.property,
     property: reearth.widget.property,
   });
 }
@@ -847,7 +852,7 @@ reearth.on("message", (msg) => {
   }
 
   if (msg.myPosition) {
-    let cameraHeight = 1000;
+    let cameraHeight = 500;
     if(msg.type == "follow") {
       if(!onFollow) {
         onFollow = true;
@@ -905,22 +910,30 @@ handles.initWidget = () => {
   reearth.ui.postMessage({
   handle: "initWidget",
   title: "initWidget",
-  userproperty: reearth.widget.property,
   property: reearth.widget.property,
-  })
-  }
-
-reearth.on("update", () => {
+  });
+  };
+  
+  reearth.on("update", () => {
   reearth.ui.postMessage({
   handle: "handleWidget",
-  userproperty: reearth.widget.property,
   property: reearth.widget.property,
   infobox: reearth.layers.overriddenInfobox,
   });
   });
-    
+
+
 reearth.on("message", (msg) => {
   if (msg && msg.action) {
     handles[msg.action]?.(msg.payload)
   }
 })
+
+reearth.on("message", msg => {
+  if (msg.type === "geolocation") {
+    reearth.ui.postMessage({
+      type: "geolocation",
+      property: reearth.widget.property,
+    });
+  }
+});
