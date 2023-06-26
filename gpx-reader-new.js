@@ -194,10 +194,10 @@ h3#title p {
 let reearth;
 let property;
 let gpxproperty;
+let userproperty;
 let layers;
 let gpxList;
 let newProperty;
-let userproperty;
 
 var layerId;
 let expanded = false;
@@ -218,38 +218,77 @@ let myLocationElm = document.getElementById("my-location");
 const POINT_STYLE = 'point';
 const ICON_STYLE = 'icon';
 const MODEL_STYLE = 'model';
-let styleType= POINT_STYLE;
+let styleType = POINT_STYLE;
 let watchID;
 let type;
 let czmlId = 0;
 
 let followBtnElm = document.getElementById("follow-btn");
 
+
 parent.postMessage({ action: "initWidget", }, "*");
 window.addEventListener("message", async function (e) {
   if (e.source !== parent) return
 
   reearth = e.source.reearth
+  cesium = e.source.Cesium;
   layers = reearth.layers.layers
 
   if (e.data.handle) {
+    // getting property for gpx file
     newProperty = e.data.property
 
     console.log("1 newProperty : ", newProperty)
 
+
+    userproperty = e.data.property;
+    console.log("2 userproperty : ", userproperty)
+
+    // write function to divide received properties
     if (JSON.stringify(property) != JSON.stringify(newProperty)) {
       gpxproperty = newProperty
-
-      gpxList = gpxproperty.gpx_list
-
-      console.log("2 gpxproperty: ", gpxproperty)
-      
+      gpxList = gpxproperty.gpx_list      
       hideLayers(gpxList);
       handleFileList(gpxList);
+      console.log("3 gpxproperty: ", gpxproperty)
     }
+
+      //Get ID of layer that show my location
+      if (e.data.hasOwnProperty("layerId")) {
+        if(e.data.layerId) {
+          layerId = e.data.layerId;
+        }
+      }
+    
+      // Update style 
+      if(property?.hasOwnProperty("default") && property.default.style) {
+        styleType = property.default.style;
+        myLocationElm.setAttribute("data-style", styleType);
+        console.log(styleType)
+      }
+  
+          // Save property date 
+      if(userproperty) {
+        myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
+        console.log("4 JSON.stringify userproperty: ", userproperty)
+      }
+  
+  if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
+        (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
+        (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE)) {
+        if (type && type == "follow") {
+          navigator.geolocation.clearWatch(watchID);
+          watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
+        } else if (type && type == "fly") {
+          handleFly();
+        }
+     } 
   };
+
 });
 
+
+// set properties for converted gpx file
 function handleFileList(files) {
 
   for (const file of files) {
@@ -283,7 +322,7 @@ function handleFileList(files) {
   }
 }
 
-
+// converting gpx file to JSON
 function handleFileSelectFromURL(url) {
   return fetch(url)
     .then(response => response.text())
@@ -381,51 +420,6 @@ function handleCloseOpenPopup(e) {
   }
 }
 
-document.getElementById("follow-btn").addEventListener("click", (e) => {
-  parent.postMessage({type: "geolocation", styleType}, "*");
-});
-
-addEventListener("message", function (e) {
-  if (e.source !== parent) return;
-  
-  userproperty = e.data.property;
-  cesium = e.source.Cesium;
-  reearth = e.source.reearth;
-
-
-  if (e.data.type === 'geolocation') {
-  // if (e) {
-  
-    //Get ID of layer that show my location
-    if (e.data.hasOwnProperty("layerId")) {
-      if(e.data.layerId) {
-        layerId = e.data.layerId;
-      }
-    }
-  
-    // Update style 
-    if(property?.hasOwnProperty("default") && property.default.style) {
-      styleType = property.default.style;
-      myLocationElm.setAttribute("data-style", styleType);
-    }
-  
-    // Save property date
-    if(userproperty) {
-      myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
-    }
-    
-    if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
-      (property?.hasOwnProperty("iconStyle") && styleType == ICON_STYLE) ||
-      (property?.hasOwnProperty("modelStyle") && styleType == MODEL_STYLE)) {
-      if (type && type == "follow") {
-        navigator.geolocation.clearWatch(watchID);
-        watchID = navigator.geolocation.watchPosition(successCallback, errorCallback, optionObj);
-      } else if (type && type == "fly") {
-        handleFly();
-      }
-    }
-  }
-});
 
 // Handle Update IFrame Size
 function updateIframeSize() {
@@ -549,6 +543,7 @@ function assignGeojsonData(gdata) {
   }
 
 
+  // getting users latitude and longitude, push date to json function to draw a path
 function successCallback(position){
   // Store location data
   let myPosition = {
@@ -758,9 +753,9 @@ function createIconStyle(location, setting) {
   let czml = [{
       "id" : "document",
       "name" : "CZML",
-      "version" : "1.0"
+      "version" : "1.0",
+      "id" : czmlId,
     }, {
-    "id" : czmlId,
     "name" : "My Location",
     "billboard" : {
       "image" : setting.imageUrl,
@@ -819,11 +814,13 @@ send();
 var styleLayerId;
 let onFollow = false;
 
+// send date just for gpx file 
 function send() {
   reearth.ui.postMessage({
     property: reearth.widget.property,
   });
 }
+
 
 reearth.on("message", (msg) => {
   if(msg.type === "showPath"){
@@ -904,6 +901,7 @@ reearth.on("message", (msg) => {
   }
 });
 
+// update date just for gpx file 
 const handles = {}
 
 handles.initWidget = () => {
@@ -928,12 +926,3 @@ reearth.on("message", (msg) => {
     handles[msg.action]?.(msg.payload)
   }
 })
-
-reearth.on("message", msg => {
-  if (msg.type === "geolocation") {
-    reearth.ui.postMessage({
-      type: "geolocation",
-      property: reearth.widget.property,
-    });
-  }
-});
