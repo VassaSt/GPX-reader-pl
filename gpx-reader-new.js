@@ -303,7 +303,7 @@ reearth.ui.show(
         // 
         if (userproperty) {
           myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
-          console.log("4 JSON.stringify userproperty: ", userproperty)
+          // console.log("4 JSON.stringify userproperty: ", userproperty)
         }
   
         if ((property?.hasOwnProperty("pointStyle") && styleType == POINT_STYLE) ||
@@ -365,17 +365,17 @@ reearth.ui.show(
           const gpxDocument = parser.parseFromString(gpxString, 'text/xml');
   
           const geoJson = toGeoJSON.gpx(gpxDocument);
-          console.log("geojson: ", geoJson); // output GeoJSON object to console (optional)
+          console.log("geoJson: ", geoJson); // output GeoJSON object to console (optional)
+
+           let geoJsonValues = Object.values(geoJson)[1];
+           let geoJsonValuesLength = Object.values(geoJsonValues).length;
+           console.log(geoJsonValuesLength);
+
+
           return geoJson
-          console.log("geoJson.length ", geoJson.length);
         });
     }
 
-    // // count arrays in selected gpx file
-    // function countArrays(selectredFile){
-    //   selectredFile =  handleFileSelectFromURL();
-    //   selectredFile.length
-    // }
   
     function handleGeojson(geoJsonData, id, action) {
       // console.log("Hanlde geoJsonData: ", geoJsonData)
