@@ -271,21 +271,22 @@ reearth.ui.show(
 
         if (e.data.handle) {
             // getting property for gpx file
-            newProperty = e.data.property;
+            newProperty = e.data.property
 
             // console.log("1 newProperty : ", newProperty)
 
             if (JSON.stringify(property) != JSON.stringify(newProperty)) {
                 gpxproperty = newProperty
-                // property = newProperty  //KN
+                property = newProperty  //KN
                 gpxList = gpxproperty.gpx_list
                 hideLayers(gpxList);
                 handleFileList(gpxList);
                 // console.log("3 gpxproperty: ", gpxproperty)
             }
 
+
             userproperty = e.data.property;
-            // console.log("1 userproperty : ", userproperty)
+            // console.log("2 userproperty : ", userproperty)
 
             //Get ID of layer that show my location
             if (e.data.hasOwnProperty("layerId")) {
@@ -300,7 +301,7 @@ reearth.ui.show(
                 myLocationElm.setAttribute("data-style", styleType);
             }
 
-            // 
+            // Save property geolocation date 
             if (userproperty) {
                 myLocationElm.setAttribute("data-property", JSON.stringify(userproperty));
                 // console.log("4 JSON.stringify userproperty: ", userproperty)
@@ -316,7 +317,6 @@ reearth.ui.show(
                     handleFly();
                 }
             }
-
         };
 
     });
@@ -365,29 +365,35 @@ reearth.ui.show(
                 const gpxDocument = parser.parseFromString(gpxString, 'text/xml');
 
                 const geoJson = toGeoJSON.gpx(gpxDocument);
-                console.log("geoJson: ", geoJson); // output GeoJSON object to console (optional)
-
-                let geoJsonValues = Object.values(geoJson)[1];
-                //  let geoJsonValuesLength = Object.values(geoJsonValues).length;
-                // console.log(geoJsonValuesLength);
-
-                for (const values in geoJsonValues) {
-                    if (geoJsonValues.hasOwnProperty(values)) {
-                        let geoJsonType = geoJsonValues[values];
-                        console.log(geoJsonType);
-                        return geoJsonType;
-                     }
-                    }
-
-
+                // console.log("geojson: ", geoJson); // output GeoJSON object to console (optional)
                 return geoJson
             });
     }
 
-
     function handleGeojson(geoJsonData, id, action) {
         // console.log("Hanlde geoJsonData: ", geoJsonData)
-        const geoJsonString = JSON.stringify(geoJsonData);
+
+        // collection for array with out defaul gpx markers
+        let geoJsonLineOnly = {
+            "type": "FeatureCollection",
+            "features": [],
+        };
+
+        let lines = Array();
+        let wayPoints = Array();
+        for (let i = 0; i < geoJsonData.features.length; i++) {
+            if (geoJsonData.features[i].geometry.type === "LineString") {
+                lines.push(geoJsonData.features[i]);
+            } else if (geoJsonData.features[i].geometry.type === "Point") {
+                wayPoints.push(geoJsonData.features[i]);
+            }
+        }
+
+        geoJsonLineOnly.features = lines;
+
+        addMarkers(wayPoints);
+
+        const geoJsonString = JSON.stringify(geoJsonLineOnly);
         const blob = new Blob([geoJsonString], { type: 'application/json' });
         const link = URL.createObjectURL(blob);
 
@@ -416,6 +422,79 @@ reearth.ui.show(
         }
     }
 
+    let pointLat;
+    let pointLng;
+    let pointText;
+    let pointLatToString;
+    let pointLngToString;
+    let newWayPoints = Array();
+
+    // add new markers and push into a new features array
+    function addMarkers(features) {
+
+        features.forEach(function (feature) {
+            // getting coordinates from defoult gpx markers
+            pointLat = feature.geometry.coordinates[1];
+            pointLng = feature.geometry.coordinates[0];
+            // getting name from defoult gpx markers
+            pointText = feature.properties.name;
+
+            // converting coordinates into string
+            pointLatToString = pointLat.toString();
+            pointLngToString = pointLng.toString();
+
+            // making text explanation using coordinates string for new marker
+            function labelTextlocation(x, y) {
+                x = pointLatToString;
+                y = pointLngToString;
+                return "Marker_lat: " + x + "_lng: " + y;
+            }
+
+            // add new reearth marker insted defoult gpx markers
+            reearth.layers.add({
+                extensionId: "marker",
+                isVisible: true,
+                title: labelTextlocation(),
+                property: {
+                    default: {
+                        location: {
+                            lat: pointLat,
+                            lng: pointLng,
+                        },
+                        label: true,
+                        labelText: labelTextlocation(),
+                        labelTypography: {
+                            fontSize: 18
+                        }
+                    },
+                },
+                infobox: {
+                    blocks: [
+                        {
+                            extensionId: "textblock",
+                            pluginId: "reearth",
+                            property: {
+                                default: {
+                                    text: pointText
+                                }
+                            }
+                        }
+                    ],
+                    property: {
+                        default: {
+                            title: labelTextlocation(),
+                        }
+                    }
+                },
+                tags: [],
+            });
+            newWayPoints.push(feature);
+        })
+        // console.log("newWayPoints: ", newWayPoints)
+        return newWayPoints;
+    }
+
+
     function hideLayers(list) {
         if (!list || 0 === list.length) {
             let filteredLayers = layers.filter(layer => layer.type === "resource" && layer.title !== "File")
@@ -425,14 +504,14 @@ reearth.ui.show(
         }
         else {
             const list_id = list.map(obj => obj.id);
-            let filteredLayers = layers.filter(layer => !list_id.includes(layer.title) && layer.type === "resource" && (layer.title !== "File" && layer.title !== "CZML"));
+            //layers => layer.title !== list_id then do something
+            let filteredLayers = layers.filter(layer => !list_id.includes(layer.title) && layer.type === "resource" && layer.title !== "File");
 
             filteredLayers.forEach(layer => {
                 reearth.layers.hide(layer.id)
             });
         }
     }
-
 
 
     function handleCloseOpenPopup(e) {
@@ -504,7 +583,7 @@ reearth.ui.show(
                 });
         } else {
             followBtnElm.textContent = "Follow";
-            console.log("geogeo: ", geojsonData)
+            // console.log("geogeo: ", geojsonData)
             navigator.geolocation.clearWatch(watchID);
             watchID = null;
             type = null;
@@ -671,15 +750,8 @@ reearth.ui.show(
                 break;
         }
 
-        // reearth.layers.overrideProperty(layerId, {
-        //   default: {
-        //     url: [],
-        //   },
-        // });
-
-        //parent.postMessage({ myPosition, type , czml}, "*");
         handleLayerReearth(myPosition, type, czml)
-        //updateIframeSize();
+
     };
 
     let styleLayerId;
@@ -781,7 +853,7 @@ reearth.ui.show(
             "version": "1.0"
         }, {
             "id": czmlId,
-            "name": "GPX Reader",
+            "name": "My Location",
             "position": {
                 "cartographicDegrees": [location.longitude, location.latitude, 1]
             },
@@ -795,36 +867,15 @@ reearth.ui.show(
         return czml;
     }
 
-    // function createIconStyle(location, setting) {
-    //   czmlId++
-    //   let czml = [{
-    //       "id" : "document",
-    //       "name" : "CZML",
-    //       "version" : "1.0",
-    //       "id" : czmlId,
-    //     }, {
-    //     "name" : "GPX Reader",
-    //     "billboard" : {
-    //       "image" : setting.imageUrl,
-    //       "scale" : setting.imageSize
-    //     },
-    //     "position" : {
-    //       "cartographicDegrees": [location.longitude, location.latitude, 1]
-    //     }
-    //   }];
-
-    //   return czml;
-    // }
-
     function createIconStyle(location, setting) {
         czmlId++
         let czml = [{
             "id": "document",
             "name": "CZML",
             "version": "1.0",
-        }, {
             "id": czmlId,
-            "name": "GPX Reader",
+        }, {
+            "name": "My Location",
             "billboard": {
                 "image": setting.imageUrl,
                 "scale": setting.imageSize
@@ -833,6 +884,7 @@ reearth.ui.show(
                 "cartographicDegrees": [location.longitude, location.latitude, 1]
             }
         }];
+
         return czml;
     }
 
@@ -850,7 +902,7 @@ reearth.ui.show(
             "version": "1.0"
         }, {
             "id": czmlId,
-            "name": "GPX Reader",
+            "name": "My Location",
             "model": {
                 "gltf": setting.modelUrl,
                 "scale": setting.modelSize,
@@ -874,10 +926,8 @@ reearth.ui.show(
 { width: 44, height: 44 }
 );
 
-
 var styleLayerId;
 let onFollow = false;
-
 
 reearth.on("message", (msg) => {
 if(msg.type === "showPath"){
