@@ -277,7 +277,6 @@ reearth.ui.show(
   
               if (JSON.stringify(property) != JSON.stringify(newProperty)) {
                   gpxproperty = newProperty
-                  property = newProperty  //KN
                   gpxList = gpxproperty.gpx_list
                   hideLayers(gpxList);
                   handleFileList(gpxList);
@@ -390,9 +389,15 @@ reearth.ui.show(
           }
   
           geoJsonLineOnly.features = lines;
-  
-          addMarkers(wayPoints);
-  
+
+          if(wayPoints.length > 0) {
+            addMarkers(wayPoints);
+            geoJsonLineOnly.features.push(...newWayPoints);
+          } 
+          
+          console.log("geoJsonLineOnly ", geoJsonLineOnly);
+
+
           const geoJsonString = JSON.stringify(geoJsonLineOnly);
           const blob = new Blob([geoJsonString], { type: 'application/json' });
           const link = URL.createObjectURL(blob);
@@ -464,7 +469,7 @@ reearth.ui.show(
                           label: true,
                           labelText: labelTextlocation(),
                           labelTypography: {
-                              fontSize: 18
+                              fontSize: 14
                           }
                       },
                   },
@@ -488,30 +493,72 @@ reearth.ui.show(
                   },
                   tags: [],
               });
-              newWayPoints.push(feature);
+            //   push data to to the empty collection to awoid coping gpx markers
+              newEmptyCollection(feature);
           })
-          // console.log("newWayPoints: ", newWayPoints)
-          return newWayPoints;
+        //   return collection just with new markers
+            return newEmptyCollection;
       }
-  
-  
-      function hideLayers(list) {
-          if (!list || 0 === list.length) {
-              let filteredLayers = layers.filter(layer => layer.type === "resource" && layer.title !== "File")
-              filteredLayers.forEach(layer => {
-                  reearth.layers.hide(layer.id)
-              });
-          }
-          else {
-              const list_id = list.map(obj => obj.id);
-              //layers => layer.title !== list_id then do something
-              let filteredLayers = layers.filter(layer => !list_id.includes(layer.title) && layer.type === "resource" && layer.title !== "File");
-  
-              filteredLayers.forEach(layer => {
-                  reearth.layers.hide(layer.id)
-              });
-          }
-      }
+
+
+
+// create a new empty collection to push just the necessary data
+function newEmptyCollection(features) {
+    let collection
+    if (features.length > 1){
+        collection = {
+            "type": "FeatureCollection",
+                        "features": [
+                            {
+                                "type": "Feature",
+                                "properties": {
+                                    "name": "", 
+                                    "desc": "",
+                                    "stroke": "", 
+                                    "fill": "",
+                                    },
+                                "geometry": {
+                                    "type": "", 
+                                    "coordinates": "",
+                                    },
+                                "infobox": {
+                                        "blocks": [
+                                            {
+                                                "extensionId": "textblock",
+                                                "pluginId": "reearth",
+                                                "property": {
+                                                    "default": {
+                                                        "text": "",
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                            }
+                        ]
+        }
+    }
+    return collection;
+}
+
+
+    function hideLayers(list) {
+        if (!list || 0 === list.length) {
+            
+            let filteredLayers = layers.filter(layer => (layer.type === "resource" || layer.type === "marker") && layer.title !== "File" && layer.title !== "CZML")
+            filteredLayers.forEach(layer => {
+                reearth.layers.hide(layer.id)
+            });
+        } else {
+            const list_id = list.map(obj => obj.id);
+
+            let filteredLayers = layers.filter(layer => (layer.type === "resource" && layer.type === "marker") && layer.title !== "File" && layer.title !== "CZML");
+
+            filteredLayers.forEach(layer => {
+                reearth.layers.hide(layer.id)
+            });
+        }
+    }
   
   
       function handleCloseOpenPopup(e) {
@@ -873,8 +920,8 @@ reearth.ui.show(
               "id": "document",
               "name": "CZML",
               "version": "1.0",
-              "id": czmlId,
           }, {
+              "id": czmlId,
               "name": "My Location",
               "billboard": {
                   "image": setting.imageUrl,
